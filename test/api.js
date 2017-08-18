@@ -84,7 +84,7 @@ test('you know... tests', async t => {
     _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
     id: 'https!beakerbrowser.com',
-    subject: 'https://beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
     title: 'Beaker Browser site',
     pinned: false
   })
@@ -96,7 +96,7 @@ test('you know... tests', async t => {
     _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
     id: 'https!beakerbrowser.com',
-    subject: 'https://beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     pinned: false
   })
@@ -108,7 +108,7 @@ test('you know... tests', async t => {
     _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
     id: 'https!beakerbrowser.com',
-    subject: 'https://beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     pinned: true
   })
@@ -119,7 +119,7 @@ test('you know... tests', async t => {
     _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
     id: 'https!beakerbrowser.com',
-    subject: 'https://beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     pinned: false
   })
@@ -138,7 +138,7 @@ test('you know... tests', async t => {
       _url: carla.url + '/bookmarks/https!beakerbrowser.com!docs.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com!docs',
-      subject: 'https://beakerbrowser.com/docs',
+      href: 'https://beakerbrowser.com/docs',
       title: 'Beaker Browser docs',
       pinned: false
     },
@@ -147,7 +147,7 @@ test('you know... tests', async t => {
       _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       pinned: true
     },
@@ -156,7 +156,7 @@ test('you know... tests', async t => {
       _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       pinned: true
     }
@@ -167,7 +167,7 @@ test('you know... tests', async t => {
       _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       pinned: true
     }
@@ -178,7 +178,7 @@ test('you know... tests', async t => {
       _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       pinned: true
     },
@@ -187,7 +187,7 @@ test('you know... tests', async t => {
       _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       pinned: true
     }
@@ -198,7 +198,7 @@ test('you know... tests', async t => {
       _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
       id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       pinned: true
     }
@@ -224,7 +224,7 @@ function bookmarkSubset (b) {
     _url: b._url,
     author: !!b.author,
     id: b.id,
-    subject: b.subject,
+    href: b.href,
     title: b.title,
     pinned: b.pinned
   }

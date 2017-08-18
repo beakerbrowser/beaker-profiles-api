@@ -47,10 +47,10 @@ await db.isFriendsWith(archiveA, archiveB) // => true
 // bookmarks
 // =
 
-await db.bookmark(archive, subjectUrl, {
+await db.bookmark(archive, href, {
   title: string
 })
-await db.unbookmark(archive, subjectUrl)
+await db.unbookmark(archive, href)
 db.getBookmarksQuery({
   author: url | DatArchive | Array<url | DatArchive>,
   pinned: boolean,
@@ -62,11 +62,11 @@ await db.listBookmarks({
   // all opts from getBroadcastsQuery, plus:
   fetchAuthor: boolean
 })
-await db.getBookmark(archive, subjectUrl)
-await db.isBookmarked(archive, subjectUrl)
+await db.getBookmark(archive, href)
+await db.isBookmarked(archive, href)
 
 // internal pinned bookmarks index
-await db.setBookmarkPinned(subjectUrl, pinned)
+await db.setBookmarkPinned(href, pinned)
 await db.listPinnedBookmarks(archive)
   
 // posting to the feed

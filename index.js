@@ -24,10 +24,10 @@ exports.open = async function (injestNameOrPath, userArchive) {
     },
     bookmarks: {
       primaryKey: 'id',
-      index: ['_origin+subject'],
+      index: ['_origin+href'],
       validator: record => ({
-        id: coerce.bookmarkId(record.subject),
-        subject: coerce.string(record.subject, {required: true}),
+        id: coerce.bookmarkId(record.href),
+        href: coerce.string(record.href, {required: true}),
         title: coerce.string(record.title),
         createdAt: coerce.number(record.createdAt) || Date.now()
       })
@@ -197,18 +197,18 @@ exports.open = async function (injestNameOrPath, userArchive) {
     // bookmarks api
     // =
 
-    async bookmark (archive, subjectUrl, {title} = {}) {
-      subjectUrl = coerce.string(subjectUrl)
+    async bookmark (archive, href, {title} = {}) {
+      href = coerce.string(href)
       title = coerce.string(title)
-      if (!subjectUrl) throw new Error('Must provide subject URL')
+      if (!href) throw new Error('Must provide bookmark URL')
       const createdAt = Date.now()
-      return db.bookmarks.add(archive, {subject: subjectUrl, title, createdAt})
+      return db.bookmarks.add(archive, {href, title, createdAt})
     },
 
-    async unbookmark (archive, subjectUrl) {
+    async unbookmark (archive, href) {
       var _origin = coerce.archiveUrl(archive)
-      await db.bookmarks.where('_origin+subject').equals([_origin, subjectUrl]).delete()
-      await this.setBookmarkPinned(subjectUrl, false)
+      await db.bookmarks.where('_origin+href').equals([_origin, href]).delete()
+      await this.setBookmarkPinned(href, false)
     },
 
     getBookmarksQuery ({author, pinned, offset, limit, reverse} = {}) {
@@ -234,7 +234,7 @@ exports.open = async function (injestNameOrPath, userArchive) {
       // fetch pinned attr
 
       promises = promises.concat(bookmarks.map(async b => {
-        b.pinned = await this.isBookmarkPinned(b.subject)
+        b.pinned = await this.isBookmarkPinned(b.href)
       }))
 
       // fetch author profile
@@ -252,34 +252,34 @@ exports.open = async function (injestNameOrPath, userArchive) {
       return bookmarks
     },
 
-    async getBookmark (archive, subjectUrl) {
+    async getBookmark (archive, href) {
       const _origin = coerce.archiveUrl(archive)
-      var record = await db.bookmarks.where('_origin+subject').equals([_origin, subjectUrl]).first()
+      var record = await db.bookmarks.where('_origin+href').equals([_origin, href]).first()
       if (!record) return null
-      record.pinned = await this.isBookmarkPinned(subjectUrl)
+      record.pinned = await this.isBookmarkPinned(href)
       record.author = await this.getProfile(record._origin)
       return record
     },
 
-    async isBookmarked (archive, subjectUrl) {
+    async isBookmarked (archive, href) {
       const _origin = coerce.archiveUrl(archive)
-      var record = await db.bookmarks.where('_origin+subject').equals([_origin, subjectUrl]).first()
+      var record = await db.bookmarks.where('_origin+href').equals([_origin, href]).first()
       return !!record
     },
 
-    async isBookmarkPinned (subjectUrl) {
+    async isBookmarkPinned (href) {
       try {
-        return await pinsLevel.get(subjectUrl)
+        return await pinsLevel.get(href)
       } catch (e) {
         return false
       }
     },
 
-    async setBookmarkPinned (subjectUrl, pinned) {
+    async setBookmarkPinned (href, pinned) {
       if (pinned) {
-        await pinsLevel.put(subjectUrl, true)
+        await pinsLevel.put(href, true)
       } else {
-        await pinsLevel.del(subjectUrl)
+        await pinsLevel.del(href)
       }
     },
 
@@ -287,9 +287,9 @@ exports.open = async function (injestNameOrPath, userArchive) {
       archive = coerce.archiveUrl(archive)
       return new Promise(resolve => {
         pinsLevel.createKeyStream()
-          .pipe(through2.obj(async (subjectUrl, enc, cb) => {
+          .pipe(through2.obj(async (href, enc, cb) => {
             try {
-              cb(null, await this.getBookmark(archive, subjectUrl))
+              cb(null, await this.getBookmark(archive, href))
             } catch (e) {
               // ignore
               cb()
