@@ -1,0 +1,32 @@
+{
+  "name": "beaker-profiles-api",
+  "version": "1.0.0",
+  "description": "An API for reading and writing profile archives as used by Beaker.",
+  "main": "index.js",
+  "dependencies": {
+    "injestdb": "^2.0.0"
+  },
+  "devDependencies": {
+    "ava": "^0.21.0",
+    "node-dat-archive": "^1.2.0",
+    "tempy": "^0.1.0"
+  },
+  "scripts": {
+    "test": "ava -s test/*.js && standard --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beakerbrowser/dat-nexus-api.git"
+  },
+  "keywords": [
+    "dat",
+    "profile",
+    "site"
+  ],
+  "author": "Paul Frazee <pfrazee@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/beakerbrowser/dat-nexus-api/issues"
+  },
+  "homepage": "https://github.com/beakerbrowser/dat-nexus-api#readme"
+}
