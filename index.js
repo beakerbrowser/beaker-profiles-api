@@ -63,7 +63,9 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
 
     // index the followers
     db.profile.get(userArchive).then(async profile => {
-      profile.followUrls.forEach(url => db.addArchive(url))
+      if (profile) {
+        profile.followUrls.forEach(url => db.addArchive(url))
+      }
     })
   }
 
