@@ -178,15 +178,16 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     },
 
     async isFollowing (archiveA, archiveB) {
+      var archiveAUrl = coerce.archiveUrl(archiveA)
       var archiveBUrl = coerce.archiveUrl(archiveB)
-      var profileA = await db.profile.get(archiveA)
+      var profileA = await db.profile.get(archiveAUrl)
       return profileA.followUrls.indexOf(archiveBUrl) !== -1
     },
 
     async listFriends (archive) {
       var followers = await this.listFollowers(archive)
       await Promise.all(followers.map(async follower => {
-        follower.isFriend = await this.isFollowing(archive, follower.url)
+        follower.isFriend = await this.isFollowing(archive, follower._origin)
       }))
       return followers.filter(f => f.isFriend)
     },
