@@ -12,12 +12,6 @@ var ProfilesAPI = require('beaker-profiles-api')
 // create a db instance
 var db = await ProfilesAPI.open(injestPathOrName[, mainUserArchive]) // mainUserArchive is a DatArchive instance
 
-// profile data
-// =
-
-await db.getProfile(archive) // => {name:, bio:, avatar:}
-await db.setProfile(archive, {name:, bio:, avatar:})
-
 // management
 // =
 
@@ -28,6 +22,12 @@ await db.addArchives(archives) // add archives to the db
 await db.removeArchive(archive) // remove archive from the db
 db.listArchives() // list archives in the db
 await db.pruneUnfollowedArchives(mainUserArchive) // remove archives from the db that arent followed by mainUserArchive
+
+// profile data
+// =
+
+await db.getProfile(archive) // => {name:, bio:, avatar:}
+await db.setProfile(archive, {name:, bio:})
 
 // social relationships
 // =

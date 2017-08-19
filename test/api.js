@@ -28,6 +28,7 @@ test('you know... tests', async t => {
     avatar: 'alice.png',
     follows: [{name: 'Bob', url: bob.url}, {name: 'Carla', url: carla.url}]
   })
+  t.deepEqual((await alice.getInfo()).title, 'User: Alice')
   await db.setProfile(bob, {
     name: 'Bob',
     avatar: 'bob.png',
