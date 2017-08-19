@@ -1,4 +1,3 @@
-require('injestdb/node')
 const test = require('ava')
 const DatArchive = require('node-dat-archive')
 const tempy = require('tempy')
@@ -10,7 +9,7 @@ var bob
 var carla
 
 test('you know... tests', async t => {
-  var db = await NexusAPI.open(tempy.directory())
+  var db = await NexusAPI.open(tempy.directory(), null, {DatArchive})
 
   // create the archives
   ;[alice, bob, carla] = await Promise.all([

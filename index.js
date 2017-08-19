@@ -6,9 +6,9 @@ const coerce = require('./lib/coerce')
 // exported api
 // =
 
-exports.open = async function (injestNameOrPath, userArchive) {
+exports.open = async function (injestNameOrPath, userArchive, opts) {
   // setup the archive
-  var db = new InjestDB(injestNameOrPath)
+  var db = new InjestDB(injestNameOrPath, opts)
   db.schema({
     version: 1,
     profile: {
