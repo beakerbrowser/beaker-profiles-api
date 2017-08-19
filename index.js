@@ -121,7 +121,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     },
 
     async setAvatar (archive, imgData, extension) {
-      archive = coerce.archive(archive)
+      archive = db._archives[coerce.archiveUrl(archive)]
       const filename = `avatar.${extension}`
 
       if (archive) {
