@@ -126,7 +126,6 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
 
       if (archive) {
         await archive.writeFile(filename, imgData)
-        await archive.commit()
       }
       return db.profile.upsert(archive, {avatar: filename})
     },
