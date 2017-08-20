@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "concat-stream": "^1.6.0",
-    "injestdb": "^2.1.2",
+    "injestdb": "^2.1.3",
     "slugify-url": "^1.2.0",
     "through2": "^2.0.3"
   },
