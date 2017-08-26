@@ -20,6 +20,12 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         avatar: coerce.path(record.avatar),
         follows: coerce.arrayOfFollows(record.follows),
         followUrls: coerce.arrayOfFollows(record.follows).map(f => f.url)
+      }),
+      toFile: record => ({
+        name: record.name,
+        bio: record.bio,
+        avatar: record.avatar,
+        follows: record.follows
       })
     },
     bookmarks: {
@@ -30,6 +36,11 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         href: coerce.string(record.href, {required: true}),
         title: coerce.string(record.title),
         createdAt: coerce.number(record.createdAt) || Date.now()
+      }),
+      toFile: record => ({
+        href: record.href,
+        title: record.title,
+        createdAt: record.createdAt
       })
     },
     broadcasts: {
@@ -41,6 +52,12 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         threadParent: coerce.datUrl(record.threadParent),
         createdAt: coerce.number(record.createdAt, {required: true}),
         receivedAt: Date.now()
+      }),
+      toFile: record => ({
+        text: record.text,
+        threadRoot: record.threadRoot,
+        threadParent: record.threadParent,
+        createdAt: record.createdAt
       })
     },
     votes: {
@@ -50,6 +67,11 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         subject: coerce.voteSubject(coerce.datUrl(record.subject), {required: true}),
         vote: coerce.vote(record.vote),
         createdAt: coerce.number(record.createdAt, {required: true})
+      }),
+      toFile: record => ({
+        subject: record.subject,
+        vote: record.vote,
+        createdAt: record.createdAt
       })
     }
   })
