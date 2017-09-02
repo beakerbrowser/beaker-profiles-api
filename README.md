@@ -53,7 +53,6 @@ await db.bookmark(archive, href, {
 await db.unbookmark(archive, href)
 db.getBookmarksQuery({
   author: url | DatArchive | Array<url | DatArchive>,
-  pinned: boolean,
   offset: number,
   limit: number,
   reverse: boolean

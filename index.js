@@ -30,16 +30,20 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     },
     bookmarks: {
       primaryKey: 'id',
-      index: ['_origin+href'],
+      index: ['_origin+href', '*tags'],
       validator: record => ({
         id: coerce.urlSlug(record.href),
         href: coerce.string(record.href, {required: true}),
         title: coerce.string(record.title),
+        tags: coerce.arrayOfStrings(record.tags),
+        notes: coerce.string(record.notes),
         createdAt: coerce.number(record.createdAt) || Date.now()
       }),
       toFile: record => ({
         href: record.href,
         title: record.title,
+        tags: record.tags,
+        notes: record.notes,
         createdAt: record.createdAt
       })
     },
@@ -233,12 +237,15 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     // bookmarks api
     // =
 
-    async bookmark (archive, href, {title} = {}) {
+    async bookmark (archive, href, {title, tags, notes} = {}) {
       href = coerce.string(href)
-      title = coerce.string(title)
+      title = title && coerce.string(title)
+      tags = tags && coerce.arrayOfStrings(tags)
+      notes = notes && coerce.string(notes)
       if (!href) throw new Error('Must provide bookmark URL')
+      const id = coerce.urlSlug(href)
       const createdAt = Date.now()
-      return db.bookmarks.add(archive, {href, title, createdAt})
+      return db.bookmarks.upsert(archive, {id, href, title, tags, notes, createdAt})
     },
 
     async unbookmark (archive, href) {
@@ -247,14 +254,38 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       await this.setBookmarkPinned(href, false)
     },
 
-    getBookmarksQuery ({author, pinned, offset, limit, reverse} = {}) {
+    getBookmarksQuery ({author, tag, offset, limit, reverse} = {}) {
       var query = db.bookmarks.query()
-      if (author && Array.isArray(author)) {
-        author = author.map(coerce.archiveUrl)
-        query = query.where('_origin').anyOf(...author)
-      } else if (author && !Array.isArray(author)) {
-        author = coerce.archiveUrl(author)
-        query = query.where('_origin').equals(author)
+      if (tag) {
+        // primary filter by tag
+        tag = coerce.arrayOfStrings(tag)
+        query.where('tags').equals(tag[0])
+        if (tag.length > 1) {
+          // anyOf() wont work because that gets all matches, and we want records with all of the given tags
+          tag.shift() // drop the first one (already filtering)
+          query = query.filter(record => {
+            return tag.reduce((agg, t) => agg & record.tags.includes(t), true)
+          })
+        }
+        if (author) {
+          // secondary filter on author
+          if (Array.isArray(author)) {
+            author = author.map(coerce.archiveUrl)
+            query = query.filter(record => author.includes(record._origin))
+          } else {
+            author = coerce.archiveUrl(author)
+            query = query.filter(record => record._origin === author)
+          }
+        }
+      } else if (author) {
+        // primary filter by author
+        if (Array.isArray(author)) {
+          author = author.map(coerce.archiveUrl)
+          query = query.where('_origin').anyOf(...author)
+        } else {
+          author = coerce.archiveUrl(author)
+          query = query.where('_origin').equals(author)
+        }
       }
       if (offset) query = query.offset(offset)
       if (limit) query = query.limit(limit)
@@ -268,7 +299,6 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       var bookmarks = await query.toArray()
 
       // fetch pinned attr
-
       promises = promises.concat(bookmarks.map(async b => {
         b.pinned = await this.isBookmarkPinned(b.href)
       }))

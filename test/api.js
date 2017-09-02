@@ -87,7 +87,8 @@ test('profile data', async t => {
 test('bookmarks', async t => {
   // bookmarks set/get
   await db.bookmark(alice, 'https://beakerbrowser.com', {
-    title: 'Beaker Browser site'
+    title: 'Beaker Browser site',
+    notes: 'Foo'
   })
   t.deepEqual(await db.isBookmarked(alice, 'https://beakerbrowser.com'), true)
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
@@ -97,8 +98,12 @@ test('bookmarks', async t => {
     id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser site',
+    tags: [],
+    notes: 'Foo',
     pinned: false
   })
+
+  // partial update title
   await db.bookmark(alice, 'https://beakerbrowser.com', {
     title: 'Beaker Browser Homepage'
   })
@@ -109,6 +114,56 @@ test('bookmarks', async t => {
     id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
+    tags: [],
+    notes: 'Foo',
+    pinned: false
+  })
+
+  // partial update notes
+  await db.bookmark(alice, 'https://beakerbrowser.com', {
+    notes: 'Bar'
+  })
+  t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
+    _origin: alice.url,
+    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+    author: true, // bookmarkSubset() just gives us a bool for whether it's present
+    id: 'https!beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
+    title: 'Beaker Browser Homepage',
+    tags: [],
+    notes: 'Bar',
+    pinned: false
+  })
+
+  // partial update tag (non array)
+  await db.bookmark(alice, 'https://beakerbrowser.com', {
+    tags: 'tag1'
+  })
+  t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
+    _origin: alice.url,
+    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+    author: true, // bookmarkSubset() just gives us a bool for whether it's present
+    id: 'https!beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
+    title: 'Beaker Browser Homepage',
+    tags: ['tag1'],
+    notes: 'Bar',
+    pinned: false
+  })
+
+  // partial update tag (array)
+  await db.bookmark(alice, 'https://beakerbrowser.com', {
+    tags: ['tag1', 'tag2']
+  })
+  t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
+    _origin: alice.url,
+    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+    author: true, // bookmarkSubset() just gives us a bool for whether it's present
+    id: 'https!beakerbrowser.com',
+    href: 'https://beakerbrowser.com',
+    title: 'Beaker Browser Homepage',
+    tags: ['tag1', 'tag2'],
+    notes: 'Bar',
     pinned: false
   })
 
@@ -121,6 +176,8 @@ test('bookmarks', async t => {
     id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
+    tags: ['tag1', 'tag2'],
+    notes: 'Bar',
     pinned: true
   })
   await db.setBookmarkPinned('https://beakerbrowser.com', false)
@@ -132,17 +189,22 @@ test('bookmarks', async t => {
     id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
+    tags: ['tag1', 'tag2'],
+    notes: 'Bar',
     pinned: false
   })
   await db.setBookmarkPinned('https://beakerbrowser.com', true)
 
   // bookmark queries
   await db.bookmark(bob, 'https://beakerbrowser.com', {
-    title: 'Beaker Browser site'
+    title: 'Beaker Browser site',
+    tags: 'tag1'
   })
   await db.bookmark(carla, 'https://beakerbrowser.com/docs', {
     title: 'Beaker Browser docs'
   })
+
+  // list all
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({fetchAuthor: true})), [
     {
       _origin: carla.url,
@@ -151,6 +213,8 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com!docs',
       href: 'https://beakerbrowser.com/docs',
       title: 'Beaker Browser docs',
+      tags: [],
+      notes: null,
       pinned: false
     },
     {
@@ -160,6 +224,8 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
       pinned: true
     },
     {
@@ -169,9 +235,54 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
+      tags: ['tag1'],
+      notes: null,
       pinned: true
     }
   ])
+
+  // list by 1 tag
+  t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: 'tag1'})), [
+    {
+      _origin: alice.url,
+      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
+      pinned: true
+    },
+    {
+      _origin: bob.url,
+      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser site',
+      tags: ['tag1'],
+      notes: null,
+      pinned: true
+    }
+  ])
+
+  // list by 2 tags
+  t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: ['tag1', 'tag2']})), [
+    {
+      _origin: alice.url,
+      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
+      pinned: true
+    }
+  ])
+
+  // list by 1 author
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({author: alice})), [
     {
       _origin: alice.url,
@@ -180,9 +291,13 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
       pinned: true
     }
   ])
+
+  // list by 2 authors
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({author: [alice, bob]})), [
     {
       _origin: alice.url,
@@ -191,6 +306,8 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
       pinned: true
     },
     {
@@ -200,9 +317,69 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
+      tags: ['tag1'],
+      notes: null,
       pinned: true
     }
   ])
+
+  // list by 1 tag & 1 author
+  t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: 'tag1', author: bob})), [
+    {
+      _origin: bob.url,
+      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser site',
+      tags: ['tag1'],
+      notes: null,
+      pinned: true
+    }
+  ])
+
+  // list by 1 tag & 2 authors
+  t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: 'tag1', author: [alice, bob]})), [
+    {
+      _origin: alice.url,
+      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
+      pinned: true
+    },
+    {
+      _origin: bob.url,
+      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser site',
+      tags: ['tag1'],
+      notes: null,
+      pinned: true
+    }
+  ])
+
+  // list by 2 tags & 2 authors
+  t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: ['tag1', 'tag2'], author: [alice, bob]})), [
+    {
+      _origin: alice.url,
+      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
+      author: false, // bookmarkSubset() just gives us a bool for whether it's present
+      id: 'https!beakerbrowser.com',
+      href: 'https://beakerbrowser.com',
+      title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
+      pinned: true
+    }
+  ])
+
+  // list pinned bookmarks
   t.deepEqual(bookmarkSubsets(await db.listPinnedBookmarks(alice)), [
     {
       _origin: alice.url,
@@ -211,6 +388,8 @@ test('bookmarks', async t => {
       id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
+      tags: ['tag1', 'tag2'],
+      notes: 'Bar',
       pinned: true
     }
   ])
@@ -449,6 +628,8 @@ function bookmarkSubset (b) {
     id: b.id,
     href: b.href,
     title: b.title,
+    tags: b.tags,
+    notes: b.notes,
     pinned: b.pinned
   }
 }
