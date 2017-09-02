@@ -43,7 +43,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         createdAt: record.createdAt
       })
     },
-    broadcasts: {
+    posts: {
       primaryKey: 'createdAt',
       index: ['createdAt', '_origin+createdAt', 'threadRoot', 'threadParent'],
       validator: record => ({
@@ -332,20 +332,20 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       })
     },
 
-    // broadcasts api
+    // posts api
     // =
 
-    broadcast (archive, {text, threadRoot, threadParent}) {
+    post (archive, {text, threadRoot, threadParent}) {
       text = coerce.string(text)
       threadParent = threadParent ? coerce.recordUrl(threadParent) : undefined
       threadRoot = threadRoot ? coerce.recordUrl(threadRoot) : threadParent
       if (!text) throw new Error('Must provide text')
       const createdAt = Date.now()
-      return db.broadcasts.add(archive, {text, threadRoot, threadParent, createdAt})
+      return db.posts.add(archive, {text, threadRoot, threadParent, createdAt})
     },
 
-    getBroadcastsQuery ({author, after, before, offset, limit, reverse} = {}) {
-      var query = db.broadcasts
+    getPostsQuery ({author, after, before, offset, limit, reverse} = {}) {
+      var query = db.posts
       if (author) {
         author = coerce.archiveUrl(author)
         after = after || 0
@@ -365,22 +365,22 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     },
 
     getRepliesQuery (threadRootUrl, {offset, limit, reverse} = {}) {
-      var query = db.broadcasts.where('threadRoot').equals(threadRootUrl)
+      var query = db.posts.where('threadRoot').equals(threadRootUrl)
       if (offset) query = query.offset(offset)
       if (limit) query = query.limit(limit)
       if (reverse) query = query.reverse()
       return query
     },
 
-    async listBroadcasts (opts = {}, query) {
+    async listPosts (opts = {}, query) {
       var promises = []
-      query = query || this.getBroadcastsQuery(opts)
-      var broadcasts = await query.toArray()
+      query = query || this.getPostsQuery(opts)
+      var posts = await query.toArray()
 
       // fetch author profile
       if (opts.fetchAuthor) {
         let profiles = {}
-        promises = promises.concat(broadcasts.map(async b => {
+        promises = promises.concat(posts.map(async b => {
           if (!profiles[b._origin]) {
             profiles[b._origin] = this.getProfile(b._origin)
           }
@@ -390,33 +390,33 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
 
       // tabulate votes
       if (opts.countVotes) {
-        promises = promises.concat(broadcasts.map(async b => {
+        promises = promises.concat(posts.map(async b => {
           b.votes = await this.countVotes(b._url)
         }))
       }
 
       // fetch replies
       if (opts.fetchReplies) {
-        promises = promises.concat(broadcasts.map(async b => {
-          b.replies = await this.listBroadcasts({fetchAuthor: true}, this.getRepliesQuery(b._url))
+        promises = promises.concat(posts.map(async b => {
+          b.replies = await this.listPosts({fetchAuthor: true}, this.getRepliesQuery(b._url))
         }))
       }
 
       await Promise.all(promises)
-      return broadcasts
+      return posts
     },
 
-    countBroadcasts (opts, query) {
-      query = query || this.getBroadcastsQuery(opts)
+    countPosts (opts, query) {
+      query = query || this.getPostsQuery(opts)
       return query.count()
     },
 
-    async getBroadcast (record) {
+    async getPost (record) {
       const recordUrl = coerce.recordUrl(record)
-      record = await db.broadcasts.get(recordUrl)
+      record = await db.posts.get(recordUrl)
       record.author = await this.getProfile(record._origin)
       record.votes = await this.countVotes(recordUrl)
-      record.replies = await this.listBroadcasts({fetchAuthor: true}, this.getRepliesQuery(recordUrl))
+      record.replies = await this.listPosts({fetchAuthor: true}, this.getRepliesQuery(recordUrl))
       return record
     },
 

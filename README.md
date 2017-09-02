@@ -3,7 +3,7 @@
 An API for reading and writing profile archives as used by Beaker. A "Profile" is a Dat archive which
 
  1. represents a user (identity),
- 2. broadcasts information (bookmarks, broadcasts, etc), and
+ 2. broadcasts information (bookmarks, posts, etc), and
  3. and follows other profiles (social relationships).
 
 ```js
@@ -59,7 +59,7 @@ db.getBookmarksQuery({
   reverse: boolean
 })
 await db.listBookmarks({
-  // all opts from getBroadcastsQuery, plus:
+  // all opts from getBookmarksQuery, plus:
   fetchAuthor: boolean
 })
 await db.getBookmark(archive, href)
@@ -72,12 +72,12 @@ await db.listPinnedBookmarks(archive)
 // posting to the feed
 // =
 
-await db.broadcast(userArchive, {
+await db.post(userArchive, {
   text: 'Hello, world!',
 })
 
 // posting a reply
-await db.broadcast(userArchive, {
+await db.post(userArchive, {
   text: 'Hello, world!',
   threadParent: parent._url, // url of message replying to
   threadRoot: top._url // url of topmost ancestor message - defaults to threadParent's value
@@ -86,8 +86,8 @@ await db.broadcast(userArchive, {
 // reading the feed
 // =
 
-// get InjestQuery for broadcasts
-db.getBroadcastsQuery({
+// get InjestQuery for posts
+db.getPostsQuery({
   author?: url | DatArchive,
   after: timestamp,
   before: timestamp,
@@ -96,16 +96,16 @@ db.getBroadcastsQuery({
   reverse: boolean
 })
 
-// get broadcast records
-await db.listBroadcasts({
-  // all opts from getBroadcastsQuery, plus:
+// get post records
+await db.listPosts({
+  // all opts from getPostsQuery, plus:
   fetchAuthor: boolean,
   fetchReplies: boolean,
   countVotes: boolean
 })
 
-await db.countBroadcasts(/* same opts for getBroadcastsQuery */)
-await db.getBroadcast(url)
+await db.countPosts(/* same opts for getPostsQuery */)
+await db.getPost(url)
 
 // votes
 // =
