@@ -614,6 +614,166 @@ test('votes', async t => {
   ])
 })
 
+test('posts', async t => {
+  // make some posts
+  var post1Url = await db.post(alice, {text: 'First'})
+  await db.post(bob, {text: 'Second'})
+  await db.post(carla, {text: 'Third'})
+  var reply1Url = await db.post(bob, {
+    text: 'First reply',
+    threadParent: post1Url,
+    threadRoot: post1Url
+  })
+  await db.post(carla, {
+    text: 'Second reply',
+    threadParent: reply1Url,
+    threadRoot: post1Url
+  })
+  await db.post(alice, {text: 'Fourth'})
+
+  // add some votes
+  await db.vote(bob, {vote: 1, subject: post1Url, subjectType: 'post'})
+  await db.vote(carla, {vote: 1, subject: post1Url, subjectType: 'post'})
+
+  // get a post
+  t.deepEqual(postSubset(await db.getPost(post1Url)), {
+    author: true,
+    text: 'First',
+    threadParent: null,
+    threadRoot: null,
+    votes: {up: 2, down: 0, value: 2, upVoters: [bob.url, carla.url], currentUsersVote: 0},
+    replies: [
+      {
+        author: true,
+        text: 'First reply',
+        threadParent: post1Url,
+        threadRoot: post1Url,
+        votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+        replies: undefined
+      },
+      {
+        author: true,
+        text: 'Second reply',
+        threadParent: reply1Url,
+        threadRoot: post1Url,
+        votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+        replies: undefined
+      }
+    ]
+  })
+
+  // list posts (no params)
+  t.deepEqual(postSubsets(await db.listPosts()), [
+    {
+      author: false,
+      text: 'First',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined
+    },
+    {
+      author: false,
+      text: 'Second',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined
+    },
+    {
+      author: false,
+      text: 'Third',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined
+    },
+    {
+      author: false,
+      text: 'Fourth',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined
+    }
+  ])
+
+  // list posts (authors, votes, and replies)
+  t.deepEqual(postSubsets(await db.listPosts({fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+    {
+      author: true,
+      text: 'First',
+      threadParent: null,
+      threadRoot: null,
+      votes: {up: 2, down: 0, value: 2, upVoters: [bob.url, carla.url], currentUsersVote: 0},
+      replies: [
+        {
+          author: true,
+          text: 'First reply',
+          threadParent: post1Url,
+          threadRoot: post1Url,
+          votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+          replies: undefined
+        },
+        {
+          author: true,
+          text: 'Second reply',
+          threadParent: reply1Url,
+          threadRoot: post1Url,
+          votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+          replies: undefined
+        }
+      ]
+    },
+    {
+      author: true,
+      text: 'Second',
+      threadParent: null,
+      threadRoot: null,
+      votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+      replies: []
+    },
+    {
+      author: true,
+      text: 'Third',
+      threadParent: null,
+      threadRoot: null,
+      votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+      replies: []
+    },
+    {
+      author: true,
+      text: 'Fourth',
+      threadParent: null,
+      threadRoot: null,
+      votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+      replies: []
+    }
+  ])
+
+  // list posts (limit, offset, reverse)
+  t.deepEqual(postSubsets(await db.listPosts({limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+    {
+      author: true,
+      text: 'Second',
+      threadParent: null,
+      threadRoot: null,
+      votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+      replies: []
+    }
+  ])
+  t.deepEqual(postSubsets(await db.listPosts({reverse: true, limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+    {
+      author: true,
+      text: 'Third',
+      threadParent: null,
+      threadRoot: null,
+      votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
+      replies: []
+    }
+  ])
+})
+
 function bookmarkSubsets (bs) {
   bs = bs.map(bookmarkSubset)
   bs.sort((a, b) => a.title.localeCompare(b.title))
@@ -647,5 +807,21 @@ function voteSubset (v) {
     subjectType: v.subjectType,
     vote: v.vote,
     author: !!v.author
+  }
+}
+
+function postSubsets (ps) {
+  ps = ps.map(postSubset)
+  return ps
+}
+
+function postSubset (p) {
+  return {
+    author: !!p.author,
+    text: p.text,
+    threadParent: p.threadParent,
+    threadRoot: p.threadRoot,
+    votes: p.votes,
+    replies: p.replies ? postSubsets(p.replies) : undefined
   }
 }
