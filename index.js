@@ -391,6 +391,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       } else {
         query = query.orderBy('createdAt')
       }
+      query = query.filter(post => !post.threadParent) // no replies
       if (offset) query = query.offset(offset)
       if (limit) query = query.limit(limit)
       if (reverse) query = query.reverse()
@@ -431,7 +432,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       // fetch replies
       if (opts.fetchReplies) {
         promises = promises.concat(posts.map(async b => {
-          b.replies = await this.listPosts({fetchAuthor: true}, this.getRepliesQuery(b._url))
+          b.replies = await this.listPosts({fetchAuthor: true, countVotes: opts.countVotes}, this.getRepliesQuery(b._url))
         }))
       }
 
