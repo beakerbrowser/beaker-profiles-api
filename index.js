@@ -10,7 +10,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
   // setup the archive
   var db = new InjestDB(injestNameOrPath, opts)
   db.schema({
-    version: 1,
+    version: 2,
     profile: {
       singular: true,
       index: ['*followUrls'],
@@ -32,7 +32,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       primaryKey: 'id',
       index: ['_origin+href'],
       validator: record => ({
-        id: coerce.bookmarkId(record.href),
+        id: coerce.urlSlug(record.href),
         href: coerce.string(record.href, {required: true}),
         title: coerce.string(record.title),
         createdAt: coerce.number(record.createdAt) || Date.now()
@@ -61,15 +61,18 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       })
     },
     votes: {
-      primaryKey: 'subject',
-      index: ['subject'],
+      primaryKey: 'id',
+      index: ['subject', 'subjectType+createdAt', '_origin+createdAt'],
       validator: record => ({
-        subject: coerce.voteSubject(coerce.datUrl(record.subject), {required: true}),
+        id: coerce.urlSlug(record.subject),
+        subject: coerce.url(record.subject, {required: true}),
+        subjectType: coerce.string(record.subjectType),
         vote: coerce.vote(record.vote),
         createdAt: coerce.number(record.createdAt, {required: true})
       }),
       toFile: record => ({
         subject: record.subject,
+        subjectType: record.subjectType,
         vote: record.vote,
         createdAt: record.createdAt
       })
@@ -391,7 +394,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       // tabulate votes
       if (opts.countVotes) {
         promises = promises.concat(posts.map(async b => {
-          b.votes = await this.countVotes(b._url)
+          b.votes = await this.countVotesFor(b._url)
         }))
       }
 
@@ -415,7 +418,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       const recordUrl = coerce.recordUrl(record)
       record = await db.posts.get(recordUrl)
       record.author = await this.getProfile(record._origin)
-      record.votes = await this.countVotes(recordUrl)
+      record.votes = await this.countVotesFor(recordUrl)
       record.replies = await this.listPosts({fetchAuthor: true}, this.getRepliesQuery(recordUrl))
       return record
     },
@@ -423,34 +426,84 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     // votes api
     // =
 
-    vote (archive, {vote, subject}) {
+    vote (archive, {vote, subject, subjectType}) {
       vote = coerce.vote(vote)
+      subjectType = coerce.string(subjectType)
+      if (!subjectType) throw new Error('Subject type is required')
       if (!subject) throw new Error('Subject is required')
       if (subject._url) subject = subject._url
       if (subject.url) subject = subject.url
-      subject = coerce.datUrl(subject)
+      subject = coerce.url(subject)
       const createdAt = Date.now()
-      return db.votes.add(archive, {vote, subject, createdAt})
+      return db.votes.add(archive, {vote, subject, subjectType, createdAt})
     },
 
-    getVotesQuery (subject) {
-      return db.votes.where('subject').equals(coerce.voteSubject(subject))
+    getVotesForQuery (subject) {
+      return db.votes.where('subject').equals(coerce.url(subject))
     },
 
-    listVotes (subject) {
-      return this.getVotesQuery(subject).toArray()
+    getVotesBySubjectTypeQuery (type, {after, before, offset, limit, reverse} = {}) {
+      after = after || 0
+      before = before || Infinity
+      var query = db.votes
+        .where('subjectType+createdAt')
+        .between([type, after], [type, before])
+      if (offset) query = query.offset(offset)
+      if (limit) query = query.limit(limit)
+      if (reverse) query = query.reverse()
+      return query
     },
 
-    async countVotes (subject) {
+    getVotesByAuthorQuery (author, {after, before, offset, limit, reverse} = {}) {
+      after = after || 0
+      before = before || Infinity
+      author = coerce.archiveUrl(author)
+      var query = db.votes
+        .where('_origin+createdAt')
+        .between([author, after], [author, before])
+      if (offset) query = query.offset(offset)
+      if (limit) query = query.limit(limit)
+      if (reverse) query = query.reverse()
+      return query
+    },
+
+    listVotesFor (subject) {
+      return this.getVotesForQuery(subject).toArray()
+    },
+
+    async listVotesBySubjectType (subject, opts = {}) {
+      var promises = []
+      var votes = await this.getVotesBySubjectTypeQuery(subject, opts).toArray()
+
+      // fetch author profile
+      if (opts.fetchAuthor) {
+        let profiles = {}
+        promises = promises.concat(votes.map(async b => {
+          if (!profiles[b._origin]) {
+            profiles[b._origin] = this.getProfile(b._origin)
+          }
+          b.author = await profiles[b._origin]
+        }))
+      }
+
+      await Promise.all(promises)
+      return votes
+    },
+
+    listVotesByAuthor (author, opts) {
+      return this.getVotesByAuthorQuery(author, opts).toArray()
+    },
+
+    async countVotesFor (subject) {
       var res = {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0}
-      await this.getVotesQuery(subject).each(record => {
+      await this.getVotesForQuery(subject).each(record => {
         res.value += record.vote
         if (record.vote === 1) {
           res.upVoters.push(record._origin)
           res.up++
         }
         if (record.vote === -1) {
-          res.down--
+          res.down++
         }
         if (userArchive && record._origin === userArchive.url) {
           res.currentUsersVote = record.vote

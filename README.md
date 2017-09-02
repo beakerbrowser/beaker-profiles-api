@@ -110,13 +110,23 @@ await db.getPost(url)
 // votes
 // =
 
-await db.vote (userArchive, {vote, subject})
-// vote should be -1, 0, or 1
-// subject should be a dat url
+await db.vote (userArchive, {
+  vote: number (-1, 0, or 1),
+  subject: string (a url),
+  subjectType: string (ie 'webpage')
+})
 
-db.getVotesQuery(subject)
-await db.listVotes(subject)
+db.getVotesForQuery(subject)
+db.getVotesBySubjectTypeQuery(type, {after, before, offset, limit, reverse})
+db.getVotesByAuthorQuery(author, {after, before, offset, limit, reverse})
+
+await db.listVotesFor(subject)
+await db.listVotesBySubjectType(type, {
+  // all opts from getVotesBySubjectTypeQuery, plus:
+  fetchAuthor: boolean
+})
+await db.listVotesByAuthor(/* same opts for getVotesByAuthorQuery */)
 
 // this returns {up: number, down: number, value: number, upVoters: array of urls, currentUsersVote: number}
-async db.countVotes(subject)
+async db.countVotesFor(subject)
 ```

@@ -1,16 +1,16 @@
 const test = require('ava')
 const DatArchive = require('node-dat-archive')
 const tempy = require('tempy')
-const NexusAPI = require('../')
+const ProfilesAPI = require('../')
 const fs = require('fs')
+
+var db
 
 var alice
 var bob
 var carla
 
-test('you know... tests', async t => {
-  var db = await NexusAPI.open(tempy.directory(), null, {DatArchive})
-
+test.before('archive creation', async t => {
   // create the archives
   ;[alice, bob, carla] = await Promise.all([
     DatArchive.create({title: 'Alice', localPath: tempy.directory()}),
@@ -18,9 +18,18 @@ test('you know... tests', async t => {
     DatArchive.create({title: 'Carla', localPath: tempy.directory()})
   ])
 
-  // add to nexus
-  await db.addArchives([alice, bob, carla])
+  // create the db
+  db = await ProfilesAPI.open(tempy.directory(), alice, {DatArchive})
 
+  // add to database
+  await db.addArchives([alice, bob, carla])
+})
+
+test.after('close db', async t => {
+  await db.close()
+})
+
+test('profile data', async t => {
   // write profiles
   await db.setProfile(alice, {
     name: 'Alice',
@@ -73,8 +82,10 @@ test('you know... tests', async t => {
     followUrls: [alice.url],
     follows: [{url: alice.url, name: null}]
   })
+})
 
-  // bookmarket set/get
+test('bookmarks', async t => {
+  // bookmarks set/get
   await db.bookmark(alice, 'https://beakerbrowser.com', {
     title: 'Beaker Browser site'
   })
@@ -208,8 +219,220 @@ test('you know... tests', async t => {
   await db.unbookmark(alice, 'https://beakerbrowser.com')
   t.deepEqual(await db.isBookmarked(alice, 'https://beakerbrowser.com'), false)
   t.falsy(await db.getBookmark(alice, 'https://beakerbrowser.com'))
+})
 
-  await db.close()
+test('votes', async t => {
+  // vote
+  await db.vote(alice, {subject: 'https://beakerbrowser.com', subjectType: 'webpage', vote: 1})
+  await db.vote(bob, {subject: 'https://beakerbrowser.com', subjectType: 'webpage', vote: 2}) // should coerce to 1
+  await db.vote(carla, {subject: 'https://beakerbrowser.com', subjectType: 'webpage', vote: 1})
+  await db.vote(alice, {subject: 'dat://beakerbrowser.com', subjectType: 'webpage', vote: 1})
+  await db.vote(bob, {subject: 'dat://beakerbrowser.com', subjectType: 'webpage', vote: 0})
+  await db.vote(carla, {subject: 'dat://beakerbrowser.com', subjectType: 'webpage', vote: -1})
+  await db.vote(alice, {subject: 'dat://bob.com/posts/1.json', subjectType: 'post', vote: -1})
+  await db.vote(bob, {subject: 'dat://bob.com/posts/1.json', subjectType: 'post', vote: -1})
+  await db.vote(carla, {subject: 'dat://bob.com/posts/1.json', subjectType: 'post', vote: -1})
+
+  // listVotesFor
+
+  // simple usage
+  t.deepEqual(voteSubsets(await db.listVotesFor('https://beakerbrowser.com')), [
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false }
+  ])
+  // url is normalized
+  t.deepEqual(voteSubsets(await db.listVotesFor('https://beakerbrowser.com/')), [
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false }
+  ])
+  // simple usage
+  t.deepEqual(voteSubsets(await db.listVotesFor('dat://beakerbrowser.com')), [
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 0,
+      author: false },
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: -1,
+      author: false }
+  ])
+  // simple usage
+  t.deepEqual(voteSubsets(await db.listVotesFor('dat://bob.com/posts/1.json')), [
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false },
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false },
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false }
+  ])
+
+  // countVotesFor
+
+  // simple usage
+  t.deepEqual(await db.countVotesFor('https://beakerbrowser.com'), {
+    up: 3,
+    down: 0,
+    value: 3,
+    upVoters: [alice.url, bob.url, carla.url],
+    currentUsersVote: 1
+  })
+  // url is normalized
+  t.deepEqual(await db.countVotesFor('https://beakerbrowser.com/'), {
+    up: 3,
+    down: 0,
+    value: 3,
+    upVoters: [alice.url, bob.url, carla.url],
+    currentUsersVote: 1
+  })
+  // simple usage
+  t.deepEqual(await db.countVotesFor('dat://beakerbrowser.com'), {
+    up: 1,
+    down: 1,
+    value: 0,
+    upVoters: [alice.url],
+    currentUsersVote: 1
+  })
+  // simple usage
+  t.deepEqual(await db.countVotesFor('dat://bob.com/posts/1.json'), {
+    up: 0,
+    down: 3,
+    value: -3,
+    upVoters: [],
+    currentUsersVote: -1
+  })
+
+  // listVotesBySubjectType
+
+  // simple usage
+  t.deepEqual(voteSubsets(await db.listVotesBySubjectType('webpage')), [
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 0,
+      author: false },
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: -1,
+      author: false }
+  ])
+  // simple usage
+  t.deepEqual(voteSubsets(await db.listVotesBySubjectType('post')), [
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false },
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false },
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false }
+  ])
+  // some params
+  t.deepEqual(voteSubsets(await db.listVotesBySubjectType('webpage', {fetchAuthor: true, limit: 1})), [
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: true }
+  ])
+
+  // listVotesByAuthor
+
+  // simple usage
+  t.deepEqual(voteSubsets(await db.listVotesByAuthor(alice)), [
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'dat!beakerbrowser.com',
+      subject: 'dat://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false },
+    { id: 'dat!bob.com!posts!1.json',
+      subject: 'dat://bob.com/posts/1.json',
+      subjectType: 'post',
+      vote: -1,
+      author: false }
+  ])
+  // some params
+  t.deepEqual(voteSubsets(await db.listVotesByAuthor(alice, {limit: 1})), [
+    { id: 'https!beakerbrowser.com',
+      subject: 'https://beakerbrowser.com',
+      subjectType: 'webpage',
+      vote: 1,
+      author: false }
+  ])
 })
 
 function bookmarkSubsets (bs) {
@@ -227,5 +450,21 @@ function bookmarkSubset (b) {
     href: b.href,
     title: b.title,
     pinned: b.pinned
+  }
+}
+
+function voteSubsets (vs) {
+  vs = vs.map(voteSubset)
+  vs.sort((a, b) => b.vote - a.vote)
+  return vs
+}
+
+function voteSubset (v) {
+  return {
+    id: v.id,
+    subject: v.subject,
+    subjectType: v.subjectType,
+    vote: v.vote,
+    author: !!v.author
   }
 }
