@@ -450,7 +450,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       record = await db.posts.get(recordUrl)
       record.author = await this.getProfile(record._origin)
       record.votes = await this.countVotesFor(recordUrl)
-      record.replies = await this.listPosts({fetchAuthor: true}, this.getRepliesQuery(recordUrl))
+      record.replies = await this.listPosts({fetchAuthor: true, countVotes: true}, this.getRepliesQuery(recordUrl))
       return record
     },
 
