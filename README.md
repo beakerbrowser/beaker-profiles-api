@@ -67,6 +67,10 @@ await db.isBookmarked(archive, href)
 // internal pinned bookmarks index
 await db.setBookmarkPinned(href, pinned)
 await db.listPinnedBookmarks(archive)
+
+// list / count tags
+await db.listBookmarkTags() // emits an array of strings
+await db.countBookmarkTags() // emits an object of {[tag]: number}
   
 // posting to the feed
 // =

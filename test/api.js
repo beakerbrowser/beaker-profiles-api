@@ -394,6 +394,10 @@ test('bookmarks', async t => {
     }
   ])
 
+  // list & count tags
+  t.deepEqual(await db.listBookmarkTags(), ['tag1', 'tag2'])
+  t.deepEqual(await db.countBookmarkTags(), {tag1: 3, tag2: 2})
+
   // unbookmark
   await db.unbookmark(alice, 'https://beakerbrowser.com')
   t.deepEqual(await db.isBookmarked(alice, 'https://beakerbrowser.com'), false)

@@ -365,6 +365,19 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       })
     },
 
+    async listBookmarkTags () {
+      return db.bookmarks.orderBy('tags').uniqueKeys()
+    },
+
+    async countBookmarkTags () {
+      var tags = await db.bookmarks.orderBy('tags').keys()
+      var tagCounts = {}
+      tags.forEach(t => {
+        tagCounts[t] = (tagCounts[t] || 0) + 1
+      })
+      return tagCounts
+    },
+
     // posts api
     // =
 
