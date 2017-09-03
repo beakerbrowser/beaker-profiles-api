@@ -52,6 +52,7 @@ await db.bookmark(archive, href, {
 })
 await db.unbookmark(archive, href)
 db.getBookmarksQuery({
+  tag: string | Array<string>,
   author: url | DatArchive | Array<url | DatArchive>,
   offset: number,
   limit: number,
