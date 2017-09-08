@@ -72,6 +72,42 @@ await db.listPinnedBookmarks(archive)
 // list / count tags
 await db.listBookmarkTags() // emits an array of strings
 await db.countBookmarkTags() // emits an object of {[tag]: number}
+
+// publishing archives
+// =
+
+await db.publishArchive(userArchive, targetArchive)
+await db.publishArchive(userArchive, {
+  url: string,
+  title: string,
+  description: string,
+  type: string | Array<string>
+})
+
+await db.unpublishArchive(userArchive, targetArchive)
+await db.unpublishArchive(userArchive, targetArchiveUrl)
+
+// get InjestQuery for archives
+await db.getPublishedArchivesQuery({
+  author?: url | DatArchive,
+  after: timestamp,
+  before: timestamp,
+  offset: number,
+  limit: number,
+  reverse: boolean
+})
+
+// get archive records
+await db.listPublishedArchives({
+  // all opts from getPublishedArchivesQuery, plus:
+  fetchAuthor: boolean,
+  countVotes: boolean
+})
+await db.countPublishedArchives({
+  // all opts from getPublishedArchivesQuery
+})
+
+await db.getPublishedArchive(recordUrl)
   
 // posting to the feed
 // =

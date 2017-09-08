@@ -13,9 +13,9 @@ var carla
 test.before('archive creation', async t => {
   // create the archives
   ;[alice, bob, carla] = await Promise.all([
-    DatArchive.create({title: 'Alice', localPath: tempy.directory()}),
-    DatArchive.create({title: 'Bob', localPath: tempy.directory()}),
-    DatArchive.create({title: 'Carla', localPath: tempy.directory()})
+    DatArchive.create({title: 'Alice', type: ['user-profile'], localPath: tempy.directory()}),
+    DatArchive.create({title: 'Bob', type: ['user-profile'], localPath: tempy.directory()}),
+    DatArchive.create({title: 'Carla', type: ['user-profile'], localPath: tempy.directory()})
   ])
 
   // create the db
@@ -778,6 +778,108 @@ test('posts', async t => {
   ])
 })
 
+test('published archives', async t => {
+  // publish some archives
+  var archiveRecord1Url = await db.publishArchive(alice, bob)
+  await db.publishArchive(alice, {
+    url: carla.url,
+    title: 'Carla',
+    description: 'My friend carla',
+    type: 'other-user-profile'
+  })
+  await db.publishArchive(bob, {
+    url: alice.url,
+    title: 'Alice',
+    description: 'My friend alice',
+    type: ['other-user-profile']
+  })
+
+  // add some votes
+  await db.vote(bob, {vote: 1, subject: archiveRecord1Url, subjectType: 'archive'})
+  await db.vote(carla, {vote: 1, subject: archiveRecord1Url, subjectType: 'archive'})
+
+  // get an archive
+  t.deepEqual(archiveSubset(await db.getPublishedArchive(archiveRecord1Url)), {
+    url: bob.url,
+    author: true,
+    title: 'User: Bob',
+    description: null,
+    type: ['user-profile'],
+    votes: {up: 2, down: 0, value: 2, upVoters: [bob.url, carla.url], currentUsersVote: 0}
+  })
+
+  // list archives (no params)
+  t.deepEqual(archiveSubsets(await db.listPublishedArchives()), [
+    { url: bob.url,
+      title: 'User: Bob',
+      description: null,
+      votes: undefined,
+      author: false,
+      type: [ 'user-profile' ] },
+    { url: carla.url,
+      title: 'Carla',
+      description: 'My friend carla',
+      votes: undefined,
+      author: false,
+      type: [ 'other-user-profile' ] },
+    { url: alice.url,
+      title: 'Alice',
+      description: 'My friend alice',
+      votes: undefined,
+      author: false,
+      type: [ 'other-user-profile' ] }
+  ])
+
+  // list archives (authors, votes)
+  t.deepEqual(archiveSubsets(await db.listPublishedArchives({fetchAuthor: true, countVotes: true})), [
+    { author: true,
+      url: bob.url,
+      title: 'User: Bob',
+      description: null,
+      type: [ 'user-profile' ],
+      votes:
+      { up: 2,
+        down: 0,
+        value: 2,
+        upVoters: [bob.url, carla.url],
+        currentUsersVote: 0 } },
+    { author: true,
+      url: carla.url,
+      title: 'Carla',
+      description: 'My friend carla',
+      type: [ 'other-user-profile' ],
+      votes: { up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0 } },
+    { author: true,
+      url: alice.url,
+      title: 'Alice',
+      description: 'My friend alice',
+      type: [ 'other-user-profile' ],
+      votes: { up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0 } }
+  ])
+
+  // list archives (limit, offset, reverse)
+  t.deepEqual(archiveSubsets(await db.listPublishedArchives({limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+    { author: true,
+      url: carla.url,
+      title: 'Carla',
+      description: 'My friend carla',
+      type: [ 'other-user-profile' ],
+      votes: { up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0 } }
+  ])
+  t.deepEqual(archiveSubsets(await db.listPublishedArchives({reverse: true, limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+    { author: true,
+      url: carla.url,
+      title: 'Carla',
+      description: 'My friend carla',
+      type: [ 'other-user-profile' ],
+      votes: { up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0 } }
+  ])
+
+  // unpublish
+  await db.unpublishArchive(alice, bob)
+  t.deepEqual(await db.getPublishedArchive(archiveRecord1Url), null)
+})
+
 function bookmarkSubsets (bs) {
   bs = bs.map(bookmarkSubset)
   bs.sort((a, b) => a.title.localeCompare(b.title))
@@ -827,5 +929,21 @@ function postSubset (p) {
     threadRoot: p.threadRoot,
     votes: p.votes,
     replies: p.replies ? postSubsets(p.replies) : undefined
+  }
+}
+
+function archiveSubsets (as) {
+  as = as.map(archiveSubset)
+  return as
+}
+
+function archiveSubset (a) {
+  return {
+    author: !!a.author,
+    url: a.url,
+    title: a.title,
+    description: a.description,
+    type: a.type,
+    votes: a.votes
   }
 }

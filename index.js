@@ -64,6 +64,26 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         createdAt: record.createdAt
       })
     },
+    archives: {
+      primaryKey: 'id',
+      index: ['createdAt', '_origin+createdAt', '_origin+url'],
+      validator: record => ({
+        id: coerce.urlSlug(record.url),
+        url: coerce.required(coerce.archiveUrl(record.url), 'url'),
+        title: coerce.string(record.title),
+        description: coerce.string(record.description),
+        type: coerce.arrayOfStrings(record.type),
+        createdAt: coerce.number(record.createdAt) || Date.now(),
+        receivedAt: Date.now()
+      }),
+      toFile: record => ({
+        url: record.url,
+        title: record.title,
+        description: record.description,
+        type: record.type,
+        createdAt: record.createdAt
+      })
+    },
     votes: {
       primaryKey: 'id',
       index: ['subject', 'subjectType+createdAt', '_origin+createdAt'],
@@ -461,9 +481,93 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     async getPost (record) {
       const recordUrl = coerce.recordUrl(record)
       record = await db.posts.get(recordUrl)
+      if (!record) return null
       record.author = await this.getProfile(record._origin)
       record.votes = await this.countVotesFor(recordUrl)
       record.replies = await this.listPosts({fetchAuthor: true, countVotes: true}, this.getRepliesQuery(recordUrl))
+      return record
+    },
+
+    // archives api
+    // =
+
+    async publishArchive (archive, archiveToPublish) {
+      if (typeof archiveToPublish.getInfo === 'function') {
+        // fetch info
+        let info = await archiveToPublish.getInfo()
+        archiveToPublish = {
+          url: archiveToPublish.url,
+          title: info.title,
+          description: info.description,
+          type: info.type
+        }
+      }
+      archiveToPublish.url = coerce.archiveUrl(archiveToPublish.url)
+      return db.archives.add(archive, archiveToPublish)
+    },
+
+    async unpublishArchive (archive, archiveToUnpublish) {
+      const _origin = coerce.archiveUrl(archive)
+      const url = coerce.archiveUrl(archiveToUnpublish)
+      await db.archives.where('_origin+url').equals([_origin, url]).delete()
+    },
+
+    getPublishedArchivesQuery ({author, after, before, offset, limit, reverse} = {}) {
+      var query = db.archives
+      if (author) {
+        author = coerce.archiveUrl(author)
+        after = after || 0
+        before = before || Infinity
+        query = query.where('_origin+createdAt').between([author, after], [author, before])
+      } else if (after || before) {
+        after = after || 0
+        before = before || Infinity
+        query = query.where('createdAt').between(after, before)
+      } else {
+        query = query.orderBy('createdAt')
+      }
+      if (offset) query = query.offset(offset)
+      if (limit) query = query.limit(limit)
+      if (reverse) query = query.reverse()
+      return query
+    },
+
+    async listPublishedArchives (opts = {}) {
+      var promises = []
+      var archives = await this.getPublishedArchivesQuery(opts).toArray()
+
+      // fetch author profile
+      if (opts.fetchAuthor) {
+        let profiles = {}
+        promises = promises.concat(archives.map(async b => {
+          if (!profiles[b._origin]) {
+            profiles[b._origin] = this.getProfile(b._origin)
+          }
+          b.author = await profiles[b._origin]
+        }))
+      }
+
+      // tabulate votes
+      if (opts.countVotes) {
+        promises = promises.concat(archives.map(async b => {
+          b.votes = await this.countVotesFor(b._url)
+        }))
+      }
+
+      await Promise.all(promises)
+      return archives
+    },
+
+    countPublishedArchives (opts) {
+      return this.getPublishedArchivesQuery(opts).count()
+    },
+
+    async getPublishedArchive (record) {
+      const recordUrl = coerce.recordUrl(record)
+      record = await db.archives.get(recordUrl)
+      if (!record) return null
+      record.author = await this.getProfile(record._origin)
+      record.votes = await this.countVotesFor(recordUrl)
       return record
     },
 
