@@ -1,6 +1,7 @@
 const InjestDB = require('injestdb')
 const through2 = require('through2')
 const concat = require('concat-stream')
+const newID = require('monotonic-timestamp-base36')
 const coerce = require('./lib/coerce')
 
 // exported api
@@ -48,9 +49,10 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       })
     },
     posts: {
-      primaryKey: 'createdAt',
+      primaryKey: 'id',
       index: ['createdAt', '_origin+createdAt', 'threadRoot', 'threadParent'],
       validator: record => ({
+        id: record.id || newID(),
         text: coerce.string(record.text),
         threadRoot: coerce.datUrl(record.threadRoot),
         threadParent: coerce.datUrl(record.threadParent),
@@ -58,6 +60,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         receivedAt: Date.now()
       }),
       toFile: record => ({
+        id: record.id,
         text: record.text,
         threadRoot: record.threadRoot,
         threadParent: record.threadParent,
@@ -65,9 +68,10 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       })
     },
     archives: {
-      primaryKey: 'createdAt',
+      primaryKey: 'id',
       index: ['createdAt', '_origin+createdAt', 'url'],
       validator: record => ({
+        id: record.id || newID(),
         url: coerce.required(coerce.archiveUrl(record.url), 'url'),
         title: coerce.string(record.title),
         description: coerce.string(record.description),
@@ -76,6 +80,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         receivedAt: Date.now()
       }),
       toFile: record => ({
+        id: record.id,
         url: record.url,
         title: record.title,
         description: record.description,
