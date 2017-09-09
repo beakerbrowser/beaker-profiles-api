@@ -65,10 +65,9 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       })
     },
     archives: {
-      primaryKey: 'id',
+      primaryKey: 'createdAt',
       index: ['createdAt', '_origin+createdAt', 'url'],
       validator: record => ({
-        id: coerce.urlSlug(record.url),
         url: coerce.required(coerce.archiveUrl(record.url), 'url'),
         title: coerce.string(record.title),
         description: coerce.string(record.description),
