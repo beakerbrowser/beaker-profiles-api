@@ -857,6 +857,29 @@ test('published archives', async t => {
       votes: { up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0 } }
   ])
 
+  // by archive
+  t.deepEqual(archiveSubsets(await db.listPublishedArchives({archive: bob, fetchAuthor: true, countVotes: true})), [
+    { author: true,
+      url: bob.url,
+      title: 'User: Bob',
+      description: null,
+      type: [ 'user-profile' ],
+      votes:
+      { up: 2,
+        down: 0,
+        value: 2,
+        upVoters: [bob.url, carla.url],
+        currentUsersVote: 0 } }
+  ])
+  t.deepEqual(archiveSubsets(await db.listPublishedArchives({archive: carla.url, fetchAuthor: true, countVotes: true})), [
+    { author: true,
+      url: carla.url,
+      title: 'Carla',
+      description: 'My friend carla',
+      type: [ 'other-user-profile' ],
+      votes: { up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0 } }
+  ])
+
   // list archives (limit, offset, reverse)
   t.deepEqual(archiveSubsets(await db.listPublishedArchives({limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
     { author: true,

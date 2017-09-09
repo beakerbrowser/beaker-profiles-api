@@ -89,7 +89,8 @@ await db.unpublishArchive(userArchive, targetArchiveUrl)
 
 // get InjestQuery for archives
 await db.getPublishedArchivesQuery({
-  author?: url | DatArchive,
+  author: url | DatArchive, (who published the archive)
+  archive: url | DatArchive, (which archive to list the publishings for)
   after: timestamp,
   before: timestamp,
   offset: number,

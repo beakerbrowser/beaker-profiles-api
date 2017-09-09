@@ -66,7 +66,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     },
     archives: {
       primaryKey: 'id',
-      index: ['createdAt', '_origin+createdAt', '_origin+url'],
+      index: ['createdAt', '_origin+createdAt', 'url'],
       validator: record => ({
         id: coerce.urlSlug(record.url),
         url: coerce.required(coerce.archiveUrl(record.url), 'url'),
@@ -509,16 +509,22 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
     async unpublishArchive (archive, archiveToUnpublish) {
       const _origin = coerce.archiveUrl(archive)
       const url = coerce.archiveUrl(archiveToUnpublish)
-      await db.archives.where('_origin+url').equals([_origin, url]).delete()
+      await db.archives
+        .where('url').equals(url)
+        .filter(record => record._origin === _origin)
+        .delete()
     },
 
-    getPublishedArchivesQuery ({author, after, before, offset, limit, reverse} = {}) {
+    getPublishedArchivesQuery ({author, archive, after, before, offset, limit, reverse} = {}) {
       var query = db.archives
       if (author) {
         author = coerce.archiveUrl(author)
         after = after || 0
         before = before || Infinity
         query = query.where('_origin+createdAt').between([author, after], [author, before])
+      } else if (archive) {
+        archive = coerce.archiveUrl(archive)
+        query = query.where('url').equals(archive)
       } else if (after || before) {
         after = after || 0
         before = before || Infinity
