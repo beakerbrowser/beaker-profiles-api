@@ -666,8 +666,48 @@ test('posts', async t => {
     ]
   })
 
-  // list posts (no params)
+  // list posts
   t.deepEqual(postSubsets(await db.listPosts()), [
+    { author: false,
+      text: 'First',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined },
+    { author: false,
+      text: 'Second',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined },
+    { author: false,
+      text: 'Third',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined },
+    { author: false,
+      text: 'First reply',
+      threadParent: post1Url,
+      threadRoot: post1Url,
+      votes: undefined,
+      replies: undefined },
+    { author: false,
+      text: 'Second reply',
+      threadParent: reply1Url,
+      threadRoot: post1Url,
+      votes: undefined,
+      replies: undefined },
+    { author: false,
+      text: 'Fourth',
+      threadParent: null,
+      threadRoot: null,
+      votes: undefined,
+      replies: undefined }
+  ])
+
+  // list posts (no replies)
+  t.deepEqual(postSubsets(await db.listPosts({noReplies: true})), [
     {
       author: false,
       text: 'First',
@@ -703,7 +743,7 @@ test('posts', async t => {
   ])
 
   // list posts (authors, votes, and replies)
-  t.deepEqual(postSubsets(await db.listPosts({fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+  t.deepEqual(postSubsets(await db.listPosts({fetchAuthor: true, noReplies: true, countVotes: true, fetchReplies: true})), [
     {
       author: true,
       text: 'First',
@@ -756,7 +796,7 @@ test('posts', async t => {
   ])
 
   // list posts (limit, offset, reverse)
-  t.deepEqual(postSubsets(await db.listPosts({limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+  t.deepEqual(postSubsets(await db.listPosts({noReplies: true, limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
     {
       author: true,
       text: 'Second',
@@ -766,7 +806,7 @@ test('posts', async t => {
       replies: []
     }
   ])
-  t.deepEqual(postSubsets(await db.listPosts({reverse: true, limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
+  t.deepEqual(postSubsets(await db.listPosts({noReplies: true, reverse: true, limit: 1, offset: 1, fetchAuthor: true, countVotes: true, fetchReplies: true})), [
     {
       author: true,
       text: 'Third',

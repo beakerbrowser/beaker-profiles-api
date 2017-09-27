@@ -130,6 +130,7 @@ await db.post(userArchive, {
 // get InjestQuery for posts
 db.getPostsQuery({
   author?: url | DatArchive,
+  noReplies: boolean,
   after: timestamp,
   before: timestamp,
   offset: number,
