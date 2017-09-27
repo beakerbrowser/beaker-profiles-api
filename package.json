@@ -1,6 +1,6 @@
 {
   "name": "beaker-profiles-api",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "An API for reading and writing profile archives as used by Beaker.",
   "main": "index.js",
   "dependencies": {
