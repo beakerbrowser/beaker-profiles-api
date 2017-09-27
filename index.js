@@ -1,4 +1,4 @@
-const InjestDB = require('injestdb')
+const IngestDB = require('ingestdb')
 const through2 = require('through2')
 const concat = require('concat-stream')
 const newID = require('monotonic-timestamp-base36')
@@ -9,7 +9,7 @@ const coerce = require('./lib/coerce')
 
 exports.open = async function (injestNameOrPath, userArchive, opts) {
   // setup the archive
-  var db = new InjestDB(injestNameOrPath, opts)
+  var db = new IngestDB(injestNameOrPath, opts)
   db.schema({
     version: 2,
     profile: {
@@ -130,7 +130,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
         var name = db.name
         await db.close()
         if (destroy) {
-          await InjestDB.delete(name)
+          await IngestDB.delete(name)
         }
         this.db = null
       }
