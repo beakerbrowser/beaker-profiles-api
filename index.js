@@ -414,7 +414,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       return db.posts.add(archive, {text, threadRoot, threadParent, createdAt})
     },
 
-    getPostsQuery ({author, noReplies, after, before, offset, limit, reverse} = {}) {
+    getPostsQuery ({author, rootPostsOnly, after, before, offset, limit, reverse} = {}) {
       var query = db.posts
       if (author) {
         author = coerce.archiveUrl(author)
@@ -428,7 +428,7 @@ exports.open = async function (injestNameOrPath, userArchive, opts) {
       } else {
         query = query.orderBy('createdAt')
       }
-      if (noReplies) {
+      if (rootPostsOnly) {
         query = query.filter(post => !post.threadParent)
       }
       if (offset) query = query.offset(offset)

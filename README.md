@@ -130,7 +130,7 @@ await db.post(userArchive, {
 // get InjestQuery for posts
 db.getPostsQuery({
   author?: url | DatArchive,
-  noReplies: boolean,
+  rootPostsOnly: boolean, filter out posts in the feed that are replies
   after: timestamp,
   before: timestamp,
   offset: number,
