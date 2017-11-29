@@ -20,9 +20,12 @@ test.before('archive creation', async t => {
 
   // create the db
   db = await ProfilesAPI.open(tempy.directory(), alice, {DatArchive})
+  await db.prepareArchive(alice)
+  await db.prepareArchive(bob)
+  await db.prepareArchive(carla)
 
   // add to database
-  await db.addArchives([alice, bob, carla])
+  await db.addSource([alice, bob, carla])
 })
 
 test.after('close db', async t => {
@@ -55,32 +58,26 @@ test('profile data', async t => {
 
   // verify data
   t.truthy(await bob.stat('/avatar.jpg'))
-  t.deepEqual(await db.getProfile(alice), {
-    _origin: alice.url,
-    _url: alice.url + '/profile.json',
+  t.deepEqual(profileSubset(await db.getProfile(alice)), {
     name: 'Alice',
     bio: 'A cool hacker girl',
-    avatar: '/alice.png',
+    avatar: 'alice.png',
     followUrls: [bob.url, carla.url],
     follows: [{name: 'Bob', url: bob.url}, {name: 'Carla', url: carla.url}]
   })
-  t.deepEqual(await db.getProfile(bob), {
-    _origin: bob.url,
-    _url: bob.url + '/profile.json',
+  t.deepEqual(profileSubset(await db.getProfile(bob)), {
     name: 'Bob',
     bio: 'A cool hacker guy',
-    avatar: '/avatar.jpg',
+    avatar: 'avatar.jpg',
     followUrls: [alice.url],
     follows: [{name: 'Alice', url: alice.url}]
   })
-  t.deepEqual(await db.getProfile(carla), {
-    _origin: carla.url,
-    _url: carla.url + '/profile.json',
+  t.deepEqual(profileSubset(await db.getProfile(carla)), {
     name: 'Carla',
-    bio: null,
-    avatar: null,
+    bio: undefined,
+    avatar: undefined,
     followUrls: [alice.url],
-    follows: [{url: alice.url, name: null}]
+    follows: [{url: alice.url}]
   })
 })
 
@@ -92,10 +89,7 @@ test('bookmarks', async t => {
   })
   t.deepEqual(await db.isBookmarked(alice, 'https://beakerbrowser.com'), true)
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser site',
     tags: [],
@@ -108,10 +102,7 @@ test('bookmarks', async t => {
     title: 'Beaker Browser Homepage'
   })
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     tags: [],
@@ -124,10 +115,7 @@ test('bookmarks', async t => {
     notes: 'Bar'
   })
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     tags: [],
@@ -140,10 +128,7 @@ test('bookmarks', async t => {
     tags: 'tag1'
   })
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     tags: ['tag1'],
@@ -156,10 +141,7 @@ test('bookmarks', async t => {
     tags: ['tag1', 'tag2']
   })
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     tags: ['tag1', 'tag2'],
@@ -170,10 +152,7 @@ test('bookmarks', async t => {
   // bookmark pinning
   await db.setBookmarkPinned('https://beakerbrowser.com', true)
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     tags: ['tag1', 'tag2'],
@@ -183,10 +162,7 @@ test('bookmarks', async t => {
   await db.setBookmarkPinned('https://beakerbrowser.com', false)
   await db.setBookmarkPinned('https://beakerbrowser.com', false) // second time cause problems?
   t.deepEqual(bookmarkSubset(await db.getBookmark(alice, 'https://beakerbrowser.com')), {
-    _origin: alice.url,
-    _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
     author: true, // bookmarkSubset() just gives us a bool for whether it's present
-    id: 'https!beakerbrowser.com',
     href: 'https://beakerbrowser.com',
     title: 'Beaker Browser Homepage',
     tags: ['tag1', 'tag2'],
@@ -207,21 +183,15 @@ test('bookmarks', async t => {
   // list all
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({fetchAuthor: true})), [
     {
-      _origin: carla.url,
-      _url: carla.url + '/bookmarks/https!beakerbrowser.com!docs.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com!docs',
       href: 'https://beakerbrowser.com/docs',
       title: 'Beaker Browser docs',
       tags: [],
-      notes: null,
+      notes: undefined,
       pinned: false
     },
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -229,14 +199,11 @@ test('bookmarks', async t => {
       pinned: true
     },
     {
-      _origin: bob.url,
-      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       tags: ['tag1'],
-      notes: null,
+      notes: undefined,
       pinned: true
     }
   ])
@@ -244,10 +211,7 @@ test('bookmarks', async t => {
   // list by 1 tag
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: 'tag1'})), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -255,14 +219,11 @@ test('bookmarks', async t => {
       pinned: true
     },
     {
-      _origin: bob.url,
-      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       tags: ['tag1'],
-      notes: null,
+      notes: undefined,
       pinned: true
     }
   ])
@@ -270,10 +231,7 @@ test('bookmarks', async t => {
   // list by 2 tags
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: ['tag1', 'tag2']})), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -285,10 +243,7 @@ test('bookmarks', async t => {
   // list by 1 author
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({author: alice})), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -300,10 +255,7 @@ test('bookmarks', async t => {
   // list by 2 authors
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({author: [alice, bob]})), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -311,14 +263,11 @@ test('bookmarks', async t => {
       pinned: true
     },
     {
-      _origin: bob.url,
-      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       tags: ['tag1'],
-      notes: null,
+      notes: undefined,
       pinned: true
     }
   ])
@@ -326,14 +275,11 @@ test('bookmarks', async t => {
   // list by 1 tag & 1 author
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: 'tag1', author: bob})), [
     {
-      _origin: bob.url,
-      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       tags: ['tag1'],
-      notes: null,
+      notes: undefined,
       pinned: true
     }
   ])
@@ -341,10 +287,7 @@ test('bookmarks', async t => {
   // list by 1 tag & 2 authors
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: 'tag1', author: [alice, bob]})), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -352,14 +295,11 @@ test('bookmarks', async t => {
       pinned: true
     },
     {
-      _origin: bob.url,
-      _url: bob.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser site',
       tags: ['tag1'],
-      notes: null,
+      notes: undefined,
       pinned: true
     }
   ])
@@ -367,10 +307,7 @@ test('bookmarks', async t => {
   // list by 2 tags & 2 authors
   t.deepEqual(bookmarkSubsets(await db.listBookmarks({tag: ['tag1', 'tag2'], author: [alice, bob]})), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: false, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -382,10 +319,7 @@ test('bookmarks', async t => {
   // list pinned bookmarks
   t.deepEqual(bookmarkSubsets(await db.listPinnedBookmarks(alice)), [
     {
-      _origin: alice.url,
-      _url: alice.url + '/bookmarks/https!beakerbrowser.com.json',
       author: true, // bookmarkSubset() just gives us a bool for whether it's present
-      id: 'https!beakerbrowser.com',
       href: 'https://beakerbrowser.com',
       title: 'Beaker Browser Homepage',
       tags: ['tag1', 'tag2'],
@@ -420,72 +354,60 @@ test('votes', async t => {
 
   // simple usage
   t.deepEqual(voteSubsets(await db.listVotesFor('https://beakerbrowser.com')), [
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false }
   ])
   // url is normalized
   t.deepEqual(voteSubsets(await db.listVotesFor('https://beakerbrowser.com/')), [
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false }
   ])
   // simple usage
   t.deepEqual(voteSubsets(await db.listVotesFor('dat://beakerbrowser.com')), [
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 0,
       author: false },
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: -1,
       author: false }
   ])
   // simple usage
   t.deepEqual(voteSubsets(await db.listVotesFor('dat://bob.com/posts/1.json')), [
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false },
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false },
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false }
@@ -530,59 +452,49 @@ test('votes', async t => {
 
   // simple usage
   t.deepEqual(voteSubsets(await db.listVotesBySubjectType('webpage')), [
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 0,
       author: false },
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: -1,
       author: false }
   ])
   // simple usage
   t.deepEqual(voteSubsets(await db.listVotesBySubjectType('post')), [
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false },
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false },
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false }
   ])
   // some params
   t.deepEqual(voteSubsets(await db.listVotesBySubjectType('webpage', {fetchAuthor: true, limit: 1})), [
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: true }
@@ -592,26 +504,22 @@ test('votes', async t => {
 
   // simple usage
   t.deepEqual(voteSubsets(await db.listVotesByAuthor(alice)), [
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'dat!beakerbrowser.com',
-      subject: 'dat://beakerbrowser.com',
+    { subject: 'dat://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false },
-    { id: 'dat!bob.com!posts!1.json',
-      subject: 'dat://bob.com/posts/1.json',
+    { subject: 'dat://bob.com/posts/1.json',
       subjectType: 'post',
       vote: -1,
       author: false }
   ])
   // some params
   t.deepEqual(voteSubsets(await db.listVotesByAuthor(alice, {limit: 1})), [
-    { id: 'https!beakerbrowser.com',
-      subject: 'https://beakerbrowser.com',
+    { subject: 'https://beakerbrowser.com',
       subjectType: 'webpage',
       vote: 1,
       author: false }
@@ -643,8 +551,8 @@ test('posts', async t => {
   t.deepEqual(postSubset(await db.getPost(post1Url)), {
     author: true,
     text: 'First',
-    threadParent: null,
-    threadRoot: null,
+    threadParent: undefined,
+    threadRoot: undefined,
     votes: {up: 2, down: 0, value: 2, upVoters: [bob.url, carla.url], currentUsersVote: 0},
     replies: [
       {
@@ -670,20 +578,20 @@ test('posts', async t => {
   t.deepEqual(postSubsets(await db.listPosts()), [
     { author: false,
       text: 'First',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined },
     { author: false,
       text: 'Second',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined },
     { author: false,
       text: 'Third',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined },
     { author: false,
@@ -700,8 +608,8 @@ test('posts', async t => {
       replies: undefined },
     { author: false,
       text: 'Fourth',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined }
   ])
@@ -711,32 +619,32 @@ test('posts', async t => {
     {
       author: false,
       text: 'First',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined
     },
     {
       author: false,
       text: 'Second',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined
     },
     {
       author: false,
       text: 'Third',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined
     },
     {
       author: false,
       text: 'Fourth',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: undefined,
       replies: undefined
     }
@@ -747,8 +655,8 @@ test('posts', async t => {
     {
       author: true,
       text: 'First',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: {up: 2, down: 0, value: 2, upVoters: [bob.url, carla.url], currentUsersVote: 0},
       replies: [
         {
@@ -772,24 +680,24 @@ test('posts', async t => {
     {
       author: true,
       text: 'Second',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
       replies: []
     },
     {
       author: true,
       text: 'Third',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
       replies: []
     },
     {
       author: true,
       text: 'Fourth',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
       replies: []
     }
@@ -800,8 +708,8 @@ test('posts', async t => {
     {
       author: true,
       text: 'Second',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
       replies: []
     }
@@ -810,8 +718,8 @@ test('posts', async t => {
     {
       author: true,
       text: 'Third',
-      threadParent: null,
-      threadRoot: null,
+      threadParent: undefined,
+      threadRoot: undefined,
       votes: {up: 0, down: 0, value: 0, upVoters: [], currentUsersVote: 0},
       replies: []
     }
@@ -825,7 +733,7 @@ test('published archives', async t => {
     url: carla.url,
     title: 'Carla',
     description: 'My friend carla',
-    type: 'other-user-profile'
+    type: ['other-user-profile']
   })
   await db.publishArchive(bob, {
     url: alice.url,
@@ -843,7 +751,7 @@ test('published archives', async t => {
     url: bob.url,
     author: true,
     title: 'User: Bob',
-    description: null,
+    description: undefined,
     type: ['user-profile'],
     votes: {up: 2, down: 0, value: 2, upVoters: [bob.url, carla.url], currentUsersVote: 0}
   })
@@ -852,7 +760,7 @@ test('published archives', async t => {
   t.deepEqual(archiveSubsets(await db.listPublishedArchives()), [
     { url: bob.url,
       title: 'User: Bob',
-      description: null,
+      description: undefined,
       votes: undefined,
       author: false,
       type: [ 'user-profile' ] },
@@ -875,7 +783,7 @@ test('published archives', async t => {
     { author: true,
       url: bob.url,
       title: 'User: Bob',
-      description: null,
+      description: undefined,
       type: [ 'user-profile' ],
       votes:
       { up: 2,
@@ -902,7 +810,7 @@ test('published archives', async t => {
     { author: true,
       url: bob.url,
       title: 'User: Bob',
-      description: null,
+      description: undefined,
       type: [ 'user-profile' ],
       votes:
       { up: 2,
@@ -943,6 +851,16 @@ test('published archives', async t => {
   t.deepEqual(await db.getPublishedArchive(archiveRecord1Url), null)
 })
 
+function profileSubset (p) {
+  return {
+    name: p.name,
+    bio: p.bio,
+    avatar: p.avatar,
+    followUrls: p.followUrls,
+    follows: p.follows
+  }
+}
+
 function bookmarkSubsets (bs) {
   bs = bs.map(bookmarkSubset)
   bs.sort((a, b) => a.title.localeCompare(b.title))
@@ -951,10 +869,7 @@ function bookmarkSubsets (bs) {
 
 function bookmarkSubset (b) {
   return {
-    _origin: b._origin,
-    _url: b._url,
     author: !!b.author,
-    id: b.id,
     href: b.href,
     title: b.title,
     tags: b.tags,
@@ -971,7 +886,6 @@ function voteSubsets (vs) {
 
 function voteSubset (v) {
   return {
-    id: v.id,
     subject: v.subject,
     subjectType: v.subjectType,
     vote: v.vote,
